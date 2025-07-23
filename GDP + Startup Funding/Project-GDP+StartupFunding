@@ -1,0 +1,101 @@
+import pandas as pd
+from pandasql import sqldf
+
+# Load data
+gdp = pd.read_csv('India_GDP_Data.csv')
+startups = pd.read_csv('startup_funding.csv')
+gdp.columns = gdp.columns.str.strip()
+
+# Data cleaning - GDP Data
+gdp['Percentage_Growth'] = gdp['Percentage_Growth'].fillna(0)
+gdp["Percentage_Loss"] = gdp['Percentage_Growth'].where(gdp['Percentage_Growth'] < 0, 0).abs()
+gdp.loc[gdp['Percentage_Growth'] < 0, 'Percentage_Growth'] = 0
+
+# Data cleaning - StartUp Funding Data
+# For AmountInUSD
+startups['AmountInUSD'] = startups['AmountInUSD'].astype(str).str.replace(',', '', regex=False)
+startups['AmountInUSD'] = pd.to_numeric(startups['AmountInUSD'], errors='coerce')
+startups['AmountInUSD'] = startups['AmountInUSD'].fillna(startups['AmountInUSD'].median())
+# Filling NaN values
+startups[['IndustryVertical', 'SubVertical', 'CityLocation', 'InvestorsName', 'InvestmentType']] = startups[['IndustryVertical', 'SubVertical', 'CityLocation', 'InvestorsName', 'InvestmentType']].fillna('Unknown')
+# For StartUps Name
+startups['StartupName'] = startups['StartupName'].str.strip().str.title()
+startupsName_mappings = {
+    'Paytm' : 'Paytm', 
+    'Paytm Marketplace' : 'Paytm', 
+    'Flipkart': 'Flipkart',
+    'Flipkart.Com' : 'Flipkart',  
+    'Ola Cabs' : 'Ola Cabs', 
+    'Ola' : 'Ola Cabs', 
+    'Olacabs' : 'Ola Cabs', 
+    'Ola Cabscabs' : 'Ola Cabs', 
+    'Ola Cabs' : 'Ola Cabs', 
+}
+
+startups['StartupName'] = startups['StartupName'].replace(startupsName_mappings)
+# For CityLocation
+startups['CityLocation'] = startups['CityLocation'].str.strip().str.title()
+city_mappings = {
+    'Bangalore' : 'Bangalore', 
+    'Bangaloree': 'Bangalore', 
+    'Bangaloree / Palo Alto': 'Bangalore',
+    'Bangalore / Palo Alto' : 'Bangalore', 
+    'Bangalore / San Mateo' : 'Bangalore', 
+    'Bangaloree / San Mateo': 'Bangalore',  
+    'Bangalore / Sfo' : 'Bangalore', 
+    'Bangalore / SFO' : 'Bangalore', 
+    'Bangalore / Usa' : 'Bangalore', 
+    'Bangalore/ Bangkok' : 'Bangalore', 
+    'Bengaluru': 'Bangalore',  
+    'Bangalor': 'Bangalore',   
+    'bangalore' : 'Bangalore', 
+    'Usa/India' : 'USA/India',
+    'US/India' : 'USA/India',
+    'Usa' : 'USA/India', 
+    'Us' : 'USA/India',
+    'Us/India' : 'USA/India'
+}
+startups['CityLocation'] = startups['CityLocation'].replace(city_mappings)
+# Deleting remarks col
+del startups['Remarks']
+
+# Year Format
+startups['Date'] = pd.to_datetime(startups['Date'], dayfirst=True, errors='coerce')
+startups['Year'] = pd.to_datetime(startups['Date']).dt.year
+gdp['Year'] = gdp['Year'].astype(int)
+
+# Select top 10 highest GDP years
+print("Top 10 highest GDP years : \n")
+query = '''
+       SELECT Year, GDP_In_Billion_USD, Percentage_Growth, Percentage_Loss FROM gdp GROUP BY Year ORDER BY GDP_In_Billion_USD DESC LIMIT 10
+'''
+result = sqldf(query)
+print(result)
+print()
+
+# Find startups that received the highest funding
+print("Top 10 startups that received the highest funding : \n")
+query = '''
+       SELECT Year, StartupName, CityLocation, MAX(AmountINUSD) AS MaxFunding FROM startups GROUP BY StartupName ORDER BY MaxFunding DESC LIMIT 10
+'''
+result = sqldf(query)
+print(result)
+print()
+
+# Count startups by city
+print("Count startups by city : \n")
+query = '''
+     SELECT CityLocation, COUNT(StartupName) AS Total_StartUps FROM startups GROUP BY CityLocation
+'''
+result = sqldf(query)
+print(result)
+print()
+
+# Calculate average funding by industry vertical
+print("Average funding by industry vertical : \n")
+query = '''
+     SELECT DISTINCT IndustryVertical, COUNT(StartupName) AS Total_StartUps, AVG(AmountINUSD) AS Avg_Investment FROM startups GROUP BY IndustryVertical Order by Total_StartUps DESC LIMIT 10
+'''
+result = sqldf(query)
+print(result)
+print()
