@@ -99,3 +99,30 @@ query = '''
 result = sqldf(query)
 print(result)
 print()
+
+# Funding trends by industry over time
+print("Funding trends by industry over time : ")
+query = '''
+     SELECT IndustryVertical, Year, SUM(AmountINUSD) AS Total_Funding, COUNT(StartupName) AS Deal_Count, (SUM(AmountInUSD) / COUNT(StartupName)) AS Avg_Deal_Size FROM startups GROUP BY IndustryVertical ORDER BY Deal_Count DESC
+'''
+result = sqldf(query)
+print(result)
+print()
+
+# Yearly total funding amount (join with extracted year from date)
+print("Yearly total funding amount : ")
+query = '''
+     SELECT Year, COUNT(StartupName) AS Total_StartUps, SUM(AmountINUSD) AS Funding_Amount FROM startups GROUP BY Year
+'''
+result = sqldf(query)
+print(result)
+print()
+
+# Top investors by total investment amount
+print("Top investors by total investment amount : \n")
+query = '''
+     SELECT InvestorsName, SUM(AmountINUSD) AS Funding_Amount FROM startups GROUP BY InvestorsName ORDER BY Funding_Amount DESC LIMIT 10
+'''
+result = sqldf(query)
+print(result)
+print()
